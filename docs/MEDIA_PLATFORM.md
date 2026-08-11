@@ -74,7 +74,9 @@ Gate must trust the matching public JWK through its existing
 
 The standard and local Docker Compose files explicitly pass these variables
 from `deploy/.env`. Keep `SUB2API_MEDIA_ENABLED=false` until both sides of the
-service identity are configured.
+service identity are configured. Those deployment modes pull the independent
+`ghcr.io/chensu66/sub2api-media:latest` image by default; set `SUB2API_IMAGE`
+only when pinning another Media image tag.
 
 ## Quote and order input
 

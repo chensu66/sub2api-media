@@ -6,6 +6,8 @@ $ErrorActionPreference = "Stop"
 $allowed = @(
     "README.md",
     ".gitignore",
+    ".goreleaser.simple.yaml",
+    ".goreleaser.yaml",
     ".github/workflows/upstream-compatibility.yml",
     "backend/cmd/server/wire.go",
     "backend/cmd/server/wire_gen.go",

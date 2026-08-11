@@ -47,9 +47,11 @@ Fork-owned files:
 Upstream-owned files intentionally modified:
 
 - `.gitignore`: track this fork's Media operations document.
+- `.goreleaser.yaml` and `.goreleaser.simple.yaml`: publish this fork to its
+  independent `ghcr.io/chensu66/sub2api-media` package.
 - `deploy/.env.example`, `deploy/docker-compose.yml`, and
-  `deploy/docker-compose.local.yml`: pass the isolated Media service identity
-  into the two normal container deployment modes.
+  `deploy/docker-compose.local.yml`: pull the independent Media image and pass
+  the isolated service identity into the two normal container deployment modes.
 - `backend/internal/domain/constants.go` and
   `backend/internal/service/domain_constants.go`: add the `media` group
   platform.
