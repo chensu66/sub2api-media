@@ -72,6 +72,10 @@ Gate must trust the matching public JWK through its existing
 `MEDIA_SERVICE_JWKS`, `MEDIA_SERVICE_ISSUER`,
 `MEDIA_SERVICE_AUDIENCE`, and `MEDIA_SERVICE_CALLERS` settings.
 
+The standard and local Docker Compose files explicitly pass these variables
+from `deploy/.env`. Keep `SUB2API_MEDIA_ENABLED=false` until both sides of the
+service identity are configured.
+
 ## Quote and order input
 
 Quote bodies use Gate's `media-gateway/v1` contract unchanged. Sub2API removes

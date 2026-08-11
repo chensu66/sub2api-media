@@ -55,6 +55,20 @@ services:
       - ALIPAY_MOBILE_PRECREATE_DEEP_LINK=${ALIPAY_MOBILE_PRECREATE_DEEP_LINK:-}
 
       # =======================================================================
+      # Private Media Platform (OPTIONAL)
+      # =======================================================================
+      - SUB2API_MEDIA_ENABLED=${SUB2API_MEDIA_ENABLED:-false}
+      - SUB2API_MEDIA_GATE_BASE_URL=${SUB2API_MEDIA_GATE_BASE_URL:-https://gate.ichen.su}
+      - SUB2API_MEDIA_SERVICE_ISSUER=${SUB2API_MEDIA_SERVICE_ISSUER:-}
+      - SUB2API_MEDIA_SERVICE_AUDIENCE=${SUB2API_MEDIA_SERVICE_AUDIENCE:-}
+      - SUB2API_MEDIA_CALLER_ID=${SUB2API_MEDIA_CALLER_ID:-sub2api}
+      - SUB2API_MEDIA_SERVICE_KEY_ID=${SUB2API_MEDIA_SERVICE_KEY_ID:-}
+      - SUB2API_MEDIA_SERVICE_PRIVATE_KEY_PEM=${SUB2API_MEDIA_SERVICE_PRIVATE_KEY_PEM:-}
+      - SUB2API_MEDIA_SERVICE_PRIVATE_JWK=${SUB2API_MEDIA_SERVICE_PRIVATE_JWK:-}
+      - SUB2API_MEDIA_REQUEST_TIMEOUT=${SUB2API_MEDIA_REQUEST_TIMEOUT:-30s}
+      - SUB2API_MEDIA_POLL_INTERVAL=${SUB2API_MEDIA_POLL_INTERVAL:-3s}
+
+      # =======================================================================
       # Database Configuration (PostgreSQL)
       # =======================================================================
       - DATABASE_HOST=postgres
