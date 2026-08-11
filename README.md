@@ -49,6 +49,8 @@ Upstream-owned files intentionally modified:
 - `.gitignore`: track this fork's Media operations document.
 - `.goreleaser.yaml` and `.goreleaser.simple.yaml`: publish this fork to its
   independent `ghcr.io/chensu66/sub2api-media` package.
+- `backend/cmd/server/VERSION`: release automation records the independent
+  Media build version.
 - `deploy/.env.example`, `deploy/docker-compose.yml`, and
   `deploy/docker-compose.local.yml`: pull the independent Media image and pass
   the isolated service identity into the two normal container deployment modes.
@@ -57,6 +59,9 @@ Upstream-owned files intentionally modified:
   platform.
 - `backend/internal/service/admin_group.go`: Media has no provider-account
   model defaults and permits balance billing only.
+- `backend/internal/handler/admin/group_handler.go`: allow administrators to
+  create and edit the already-defined `media` group platform. Its focused
+  binding regression test lives beside the handler.
 - `backend/internal/server/http.go`, `backend/internal/server/router.go`,
   and `backend/cmd/server/wire.go`: inject the isolated Media module.
 - `backend/cmd/server/wire_gen.go`: generated dependency graph.

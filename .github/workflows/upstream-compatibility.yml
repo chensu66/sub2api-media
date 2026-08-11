@@ -31,7 +31,7 @@ jobs:
           cache-dependency-path: backend/go.sum
       - run: go generate ./cmd/server
       - run: git diff --exit-code -- cmd/server/wire_gen.go
-      - run: go test ./cmd/server ./internal/media ./internal/server/...
+      - run: go test ./cmd/server ./internal/handler/admin ./internal/media ./internal/server/...
 
   frontend:
     runs-on: ubuntu-latest
@@ -50,4 +50,3 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-
