@@ -148,7 +148,7 @@ func (c *GateClient) do(req *http.Request, scope string, identity CustomerIdenti
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func (c *GateClient) do(req *http.Request, scope string, identity CustomerIdenti
 		return nil, &GateError{Status: response.StatusCode, Code: envelope.Error.Code, Body: body}
 	}
 	if !json.Valid(body) {
-		return nil, fmt.Errorf("Gate returned invalid JSON")
+		return nil, fmt.Errorf("gate returned invalid JSON")
 	}
 	return json.RawMessage(body), nil
 }

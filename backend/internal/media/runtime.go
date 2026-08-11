@@ -99,11 +99,11 @@ func (r *Runtime) Quote(ctx context.Context, apiKey *service.APIKey, request jso
 	expiresAt, err := time.Parse(time.RFC3339, envelope.ExpiresAt)
 	if err != nil || envelope.QuoteID == "" || envelope.QuoteToken == "" ||
 		envelope.Price.Currency != "CNY" {
-		return nil, errors.New("Gate returned an invalid quote contract")
+		return nil, errors.New("gate returned an invalid quote contract")
 	}
 	amount, err := decimal.NewFromString(envelope.Price.Amount)
 	if err != nil || !amount.IsPositive() {
-		return nil, errors.New("Gate returned an invalid quote amount")
+		return nil, errors.New("gate returned an invalid quote amount")
 	}
 	groupID := int64(0)
 	if apiKey.GroupID != nil {
@@ -266,7 +266,7 @@ func (r *Runtime) submitToGate(
 			TaskID string `json:"task_id"`
 		}
 		if json.Unmarshal(standard, &task) != nil || !strings.HasPrefix(task.TaskID, "imgtask_") {
-			return nil, errors.New("Gate edit response omitted its task identity")
+			return nil, errors.New("gate edit response omitted its task identity")
 		}
 		executionID := "mexec_" + strings.TrimPrefix(task.TaskID, "imgtask_")
 		return json.Marshal(map[string]any{
@@ -390,16 +390,17 @@ func (r *Runtime) reconcileLoop() {
 			orders, err := r.repo.ListDueOrders(ctx, 50)
 			if err == nil {
 				for _, order := range orders {
-					if order.SettlementState == "unreserved" {
+					switch order.SettlementState {
+					case "unreserved":
 						if err := r.reserve(ctx, order); errors.Is(err, service.ErrBatchImageInsufficientBalance) {
 							_ = r.repo.MarkReservationRejected(ctx, order.ID,
 								"insufficient_balance", err.Error())
 						}
-					} else if order.SettlementState == "capture_pending" {
+					case "capture_pending":
 						_ = r.capture(ctx, order)
-					} else if order.SettlementState == "release_pending" {
+					case "release_pending":
 						_ = r.release(ctx, order)
-					} else {
+					default:
 						_ = r.refreshAndSettle(ctx, order)
 					}
 				}
@@ -417,7 +418,7 @@ func validateMediaAPIKey(apiKey *service.APIKey) (CustomerIdentity, error) {
 		return CustomerIdentity{}, errors.New("the API key group is not a Media group")
 	}
 	if apiKey.Group.IsSubscriptionType() {
-		return CustomerIdentity{}, errors.New("Media groups support balance billing only")
+		return CustomerIdentity{}, errors.New("media groups support balance billing only")
 	}
 	return CustomerIdentity{UserID: apiKey.UserID, APIKeyID: apiKey.ID}, nil
 }
@@ -446,7 +447,7 @@ func moneyFloat(value string) (float64, error) {
 	}
 	result, exact := amount.Float64()
 	if !exact && amount.Exponent() < -8 {
-		return 0, errors.New("Media order amount exceeds billing precision")
+		return 0, errors.New("media order amount exceeds billing precision")
 	}
 	return result, nil
 }

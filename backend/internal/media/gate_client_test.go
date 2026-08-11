@@ -23,7 +23,7 @@ func TestWriteEditMultipartPreservesReferenceOrder(t *testing.T) {
 
 	form, err := multipart.NewReader(bytes.NewReader(payload.Bytes()), writer.Boundary()).ReadForm(1 << 20)
 	require.NoError(t, err)
-	defer form.RemoveAll()
+	defer func() { require.NoError(t, form.RemoveAll()) }()
 	require.Equal(t, []string{"ordered references"}, form.Value["prompt"])
 	require.Equal(t, []string{"1"}, form.Value["n"])
 	require.NotContains(t, form.Value, "assets")

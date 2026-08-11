@@ -93,7 +93,7 @@ func (r *Repository) CreateOrder(ctx context.Context, order *Order) (*Order, boo
 	if err != nil {
 		return nil, false, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	existing, err := getOrderByIdempotency(ctx, tx, order.APIKeyID, order.ClientIdempotencyKey)
 	if err == nil {
@@ -198,7 +198,7 @@ func (r *Repository) MarkAccepted(ctx context.Context, orderID string, response 
 		return err
 	}
 	if envelope.ExecutionID == "" {
-		return errors.New("Gate execution response omitted execution_id")
+		return errors.New("gate execution response omitted execution_id")
 	}
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE media_orders SET submission_state = 'accepted', gate_execution_id = $2,
@@ -269,7 +269,7 @@ func (r *Repository) ListDueOrders(ctx context.Context, limit int) ([]*Order, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var orders []*Order
 	for rows.Next() {
 		order, err := scanOrder(rows)

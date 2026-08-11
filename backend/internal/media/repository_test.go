@@ -12,7 +12,7 @@ import (
 func TestMarkReservationRejectedTerminatesUnreservedOrder(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE media_orders SET submission_state = 'rejected', settlement_state = 'released'")).
 		WithArgs("media_1", "insufficient_balance", "insufficient balance").
@@ -27,7 +27,7 @@ func TestMarkReservationRejectedTerminatesUnreservedOrder(t *testing.T) {
 func TestListDueOrdersIncludesInterruptedReservations(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectQuery(`settlement_state IN \('unreserved', 'held', 'capture_pending', 'release_pending'\)`).
 		WithArgs(50).

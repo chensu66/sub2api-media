@@ -80,7 +80,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 	if c.Request.MultipartForm != nil {
-		defer c.Request.MultipartForm.RemoveAll()
+		defer func() { _ = c.Request.MultipartForm.RemoveAll() }()
 	}
 	if !mediaIdentifier.MatchString(quoteID) || !mediaIdentifier.MatchString(idempotencyKey) {
 		mediaError(c, http.StatusBadRequest, "invalid_request", "quote_id and idempotency_key must be valid identifiers.")

@@ -34,7 +34,8 @@ func TestAssertionSignerBindsOpaqueCustomerIdentity(t *testing.T) {
 		return &privateKey.PublicKey, nil
 	}, jwt.WithAudience("gate-media"), jwt.WithIssuer("https://sub.example/internal/media"))
 	require.NoError(t, err)
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	require.True(t, ok)
 	require.Equal(t, "sub2api:user:42", claims["tenant_subject"])
 	require.Equal(t, "sub2api:api-key:7", claims["billing_subject"])
 	require.Equal(t, "media:quotes:write", claims["scope"])
