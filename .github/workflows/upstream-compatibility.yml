@@ -1,0 +1,53 @@
+name: Media upstream compatibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "feat/media-*"
+
+jobs:
+  media-boundary:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify fork boundary
+        shell: pwsh
+        run: ./tools/verify-media-fork.ps1
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.5"
+          cache-dependency-path: backend/go.sum
+      - run: go generate ./cmd/server
+      - run: git diff --exit-code -- cmd/server/wire_gen.go
+      - run: go test ./cmd/server ./internal/media ./internal/server/...
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+

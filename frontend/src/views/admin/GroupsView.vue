@@ -693,7 +693,7 @@
         </div>
 
         <!-- Subscription Configuration -->
-        <div class="mt-4 border-t pt-4">
+        <div v-if="createForm.platform !== 'media'" class="mt-4 border-t pt-4">
           <div>
             <label class="input-label">{{
               t("admin.groups.subscription.type")
@@ -2399,7 +2399,7 @@
         </div>
 
         <!-- Subscription Configuration -->
-        <div class="mt-4 border-t pt-4">
+        <div v-if="editForm.platform !== 'media'" class="mt-4 border-t pt-4">
           <div>
             <label class="input-label">{{
               t("admin.groups.subscription.type")
@@ -4615,6 +4615,7 @@ const platformOptions = computed(() => [
   { value: "antigravity", label: "Antigravity" },
   { value: "grok", label: "Grok" },
   { value: "composite", label: "Composite" },
+  { value: "media", label: "Media" },
 ]);
 
 const platformFilterOptions = computed(() => [
@@ -4625,6 +4626,7 @@ const platformFilterOptions = computed(() => [
   { value: "antigravity", label: "Antigravity" },
   { value: "grok", label: "Grok" },
   { value: "composite", label: "Composite" },
+  { value: "media", label: "Media" },
 ]);
 
 const compositeRoutePlatformOptions = computed(() => [
@@ -6503,6 +6505,9 @@ watch(
 watch(
   () => createForm.platform,
   (newVal) => {
+    if (newVal === "media") {
+      createForm.subscription_type = "standard";
+    }
     if (!["anthropic", "antigravity"].includes(newVal)) {
       createForm.fallback_group_id_on_invalid_request = null;
     }

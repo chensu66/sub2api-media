@@ -18,6 +18,53 @@ English | [中文](README_CN.md) | [日本語](README_JA.md)
 
 </div>
 
+## Private fork: Media platform
+
+This repository is maintained as a small fork of
+[`Wei-Shaw/sub2api`](https://github.com/Wei-Shaw/sub2api). The Media work
+starts from the immutable upstream `v0.1.173` release. Upstream remains the
+merge source; this repository's `origin` contains only the private Media
+extension.
+
+The public Media facade is isolated under `/v1/media/*`. It does not replace
+or intercept upstream `/v1/images/*` routes. Gate remains responsible for
+catalog matching, product routing, provider capacity, execution, and artifact
+storage. Sub2API adds customer authentication, balance holds, exact settlement,
+and durable recovery. One Sub2API balance unit is one CNY for Media groups;
+subscription billing is rejected.
+
+Fork-owned files:
+
+- `backend/internal/media/*`: Gate client, ES256 service identity, order
+  state machine, balance adapter, recovery loop, and HTTP handlers.
+- `backend/internal/server/routes/media.go`: isolated public Media routes.
+- `backend/migrations/9001_media_platform.sql`: quotes and orders ledger.
+- `docs/MEDIA_PLATFORM.md`: API, configuration, and recovery contract.
+- `tools/verify-media-fork.ps1` and
+  `.github/workflows/upstream-compatibility.yml`: intrusion and compatibility
+  checks.
+
+Upstream-owned files intentionally modified:
+
+- `.gitignore`: track this fork's Media operations document.
+- `backend/internal/domain/constants.go` and
+  `backend/internal/service/domain_constants.go`: add the `media` group
+  platform.
+- `backend/internal/service/admin_group.go`: Media has no provider-account
+  model defaults and permits balance billing only.
+- `backend/internal/server/http.go`, `backend/internal/server/router.go`,
+  and `backend/cmd/server/wire.go`: inject the isolated Media module.
+- `backend/cmd/server/wire_gen.go`: generated dependency graph.
+- `backend/cmd/server/wire_gen_test.go`: generated graph cleanup test input.
+- `backend/internal/server/middleware/api_key_auth.go`: allow an already
+  funded Media order to be read after its hold reduces available balance to
+  zero.
+- `frontend/src/types/index.ts` and
+  `frontend/src/views/admin/GroupsView.vue`: expose the Media group type.
+
+No upstream gateway handler, provider account scheduler, image handler, or
+pricing implementation is modified.
+
 ## ⚠️ Important Notice
 
 Please read the following carefully before using this project:

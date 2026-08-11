@@ -249,6 +249,8 @@ func defaultModelsListCandidateIDs(platform string) []string {
 		return xai.DefaultModelIDs()
 	case PlatformComposite:
 		return compositeDefaultModelsListCandidateIDs()
+	case PlatformMedia:
+		return nil
 	default:
 		ids := make([]string, 0, len(claude.DefaultModels))
 		for _, model := range claude.DefaultModels {
@@ -313,6 +315,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	subscriptionType := input.SubscriptionType
 	if subscriptionType == "" {
 		subscriptionType = SubscriptionTypeStandard
+	}
+	if platform == PlatformMedia && subscriptionType != SubscriptionTypeStandard {
+		return nil, errors.New("media groups support balance billing only")
 	}
 
 	// 限额字段：nil/负数 表示"无限制"，0 表示"不允许用量"，正数表示具体限额
@@ -660,6 +665,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	// 订阅相关字段
 	if input.SubscriptionType != "" {
 		group.SubscriptionType = input.SubscriptionType
+	}
+	if group.Platform == PlatformMedia && group.SubscriptionType != SubscriptionTypeStandard {
+		return nil, errors.New("media groups support balance billing only")
 	}
 	// 限额字段：nil/负数 表示"无限制"，0 表示"不允许用量"，正数表示具体限额
 	// 前端始终发送这三个字段，无需 nil 守卫
