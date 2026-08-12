@@ -65,6 +65,9 @@ subjects into the signed quote, execution, events, and artifact authorization.
 - `SUB2API_MEDIA_SERVICE_PRIVATE_KEY_PEM` or
   `SUB2API_MEDIA_SERVICE_PRIVATE_JWK` (the single-line JWK form is convenient
   for container environments)
+- `SUB2API_MEDIA_USAGE_ACCOUNT_ID` (required when enabled; a disabled,
+  non-schedulable account reserved only as the `usage_logs.account_id` ledger
+  owner)
 - `SUB2API_MEDIA_REQUEST_TIMEOUT` (default `30s`)
 - `SUB2API_MEDIA_POLL_INTERVAL` (default `3s`)
 

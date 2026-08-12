@@ -23,6 +23,8 @@ $allowed = @(
     "backend/internal/server/routes/media.go",
     "backend/internal/service/admin_group.go",
     "backend/internal/service/domain_constants.go",
+    "backend/internal/service/update_service.go",
+    "backend/internal/service/update_service_test.go",
     "backend/migrations/9001_media_platform.sql",
     "deploy/.env.example",
     "deploy/docker-compose.local.yml",

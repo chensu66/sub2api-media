@@ -314,7 +314,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, idempotencyCoordinator, idempotencyCleanupService)
 	mediaRepository := media.NewRepository(db)
-	runtime, err := media.NewRuntime(mediaRepository, usageBillingRepository, apiKeyService, billingCacheService)
+	usageLogWriter := media.ProvideUsageLogWriter(usageLogRepository)
+	runtime, err := media.NewRuntime(mediaRepository, usageBillingRepository, apiKeyService, billingCacheService, usageLogWriter)
 	if err != nil {
 		return nil, err
 	}

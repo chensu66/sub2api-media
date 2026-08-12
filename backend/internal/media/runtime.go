@@ -24,6 +24,7 @@ type Runtime struct {
 	repo         *Repository
 	gate         *GateClient
 	billing      service.UsageBillingRepository
+	usageLogs    UsageLogWriter
 	authCache    service.APIKeyAuthCacheInvalidator
 	billingCache *service.BillingCacheService
 	stop         chan struct{}
@@ -36,6 +37,7 @@ func NewRuntime(
 	billing service.UsageBillingRepository,
 	authCache *service.APIKeyService,
 	billingCache *service.BillingCacheService,
+	usageLogs UsageLogWriter,
 ) (*Runtime, error) {
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -47,7 +49,7 @@ func NewRuntime(
 	}
 	runtime := &Runtime{
 		cfg: cfg, repo: repo, gate: NewGateClient(cfg, signer), billing: billing,
-		authCache: authCache, billingCache: billingCache,
+		usageLogs: usageLogs, authCache: authCache, billingCache: billingCache,
 		stop: make(chan struct{}), done: make(chan struct{}),
 	}
 	if cfg.Enabled {
@@ -56,6 +58,10 @@ func NewRuntime(
 		close(runtime.done)
 	}
 	return runtime, nil
+}
+
+type UsageLogWriter interface {
+	Create(context.Context, *service.UsageLog) (bool, error)
 }
 
 func (r *Runtime) Enabled() bool {
@@ -347,8 +353,49 @@ func (r *Runtime) capture(ctx context.Context, order *Order) error {
 	if err != nil {
 		return err
 	}
+	if r.usageLogs == nil || r.cfg.UsageAccountID <= 0 {
+		return errors.New("media usage log repository is not configured")
+	}
+	if _, err := r.usageLogs.Create(ctx, buildMediaUsageLog(order, r.cfg.UsageAccountID, amount)); err != nil {
+		return fmt.Errorf("record media usage: %w", err)
+	}
 	r.invalidateCustomer(ctx, order.UserID)
 	return r.repo.MarkSettled(ctx, order.ID, "captured")
+}
+
+func buildMediaUsageLog(order *Order, accountID int64, amount float64) *service.UsageLog {
+	duration := int(time.Since(order.CreatedAt).Milliseconds())
+	if duration < 0 {
+		duration = 0
+	}
+	requestedModel := mediaOrderModel(order.Request)
+	billingMode := string(service.BillingModePerRequest)
+	inboundEndpoint := "/v1/media/orders"
+	upstreamEndpoint := "/v1/media/executions"
+	groupID := order.GroupID
+	return &service.UsageLog{
+		UserID: order.UserID, APIKeyID: order.APIKeyID, AccountID: accountID,
+		RequestID: "media:" + order.ID, Model: requestedModel, RequestedModel: requestedModel,
+		GroupID: &groupID, TotalCost: amount, ActualCost: amount, RateMultiplier: 1,
+		BillingType: service.BillingTypeBalance, RequestType: service.RequestTypeSync,
+		DurationMs: &duration, BillingMode: &billingMode,
+		InboundEndpoint: &inboundEndpoint, UpstreamEndpoint: &upstreamEndpoint,
+		CreatedAt: order.CreatedAt,
+	}
+}
+
+func mediaOrderModel(request json.RawMessage) string {
+	var envelope struct {
+		Request struct {
+			Model string `json:"model"`
+		} `json:"request"`
+	}
+	if json.Unmarshal(request, &envelope) == nil {
+		if model := strings.TrimSpace(envelope.Request.Model); model != "" {
+			return model
+		}
+	}
+	return "gpt-image-2"
 }
 
 func (r *Runtime) release(ctx context.Context, order *Order) error {

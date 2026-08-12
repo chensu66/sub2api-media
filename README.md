@@ -69,6 +69,10 @@ Upstream-owned files intentionally modified:
 - `backend/internal/server/middleware/api_key_auth.go`: allow an already
   funded Media order to be read after its hold reduces available balance to
   zero.
+- `backend/internal/service/update_service.go`: keep the built-in updater on
+  this fork's configurable release repository and compare `-media.N` releases.
+- `backend/internal/service/update_service_test.go`: regression coverage for
+  the fork release repository and version suffix ordering.
 - `frontend/src/types/index.ts` and
   `frontend/src/views/admin/GroupsView.vue`: expose the Media group type.
 

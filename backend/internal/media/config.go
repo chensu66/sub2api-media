@@ -17,6 +17,7 @@ type Config struct {
 	KeyID          string
 	PrivateKeyPEM  string
 	PrivateKeyJWK  string
+	UsageAccountID int64
 	RequestTimeout time.Duration
 	PollInterval   time.Duration
 }
@@ -31,6 +32,7 @@ func LoadConfig() (Config, error) {
 		KeyID:          strings.TrimSpace(os.Getenv("SUB2API_MEDIA_SERVICE_KEY_ID")),
 		PrivateKeyPEM:  strings.ReplaceAll(os.Getenv("SUB2API_MEDIA_SERVICE_PRIVATE_KEY_PEM"), `\n`, "\n"),
 		PrivateKeyJWK:  strings.TrimSpace(os.Getenv("SUB2API_MEDIA_SERVICE_PRIVATE_JWK")),
+		UsageAccountID: envInt64("SUB2API_MEDIA_USAGE_ACCOUNT_ID", 0),
 		RequestTimeout: envDuration("SUB2API_MEDIA_REQUEST_TIMEOUT", 30*time.Second),
 		PollInterval:   envDuration("SUB2API_MEDIA_POLL_INTERVAL", 3*time.Second),
 	}
@@ -39,8 +41,8 @@ func LoadConfig() (Config, error) {
 		return cfg, nil
 	}
 	if cfg.GateBaseURL == "" || cfg.Issuer == "" || cfg.Audience == "" || cfg.CallerID == "" ||
-		cfg.KeyID == "" || (strings.TrimSpace(cfg.PrivateKeyPEM) == "" && cfg.PrivateKeyJWK == "") {
-		return Config{}, errors.New("media platform is enabled but its Gate service identity is incomplete")
+		cfg.KeyID == "" || (strings.TrimSpace(cfg.PrivateKeyPEM) == "" && cfg.PrivateKeyJWK == "") || cfg.UsageAccountID <= 0 {
+		return Config{}, errors.New("media platform is enabled but its service configuration is incomplete")
 	}
 	if cfg.RequestTimeout < time.Second || cfg.RequestTimeout > 5*time.Minute {
 		return Config{}, errors.New("SUB2API_MEDIA_REQUEST_TIMEOUT must be between 1s and 5m")
@@ -61,6 +63,18 @@ func envString(name, fallback string) string {
 func envBool(name string) bool {
 	value, _ := strconv.ParseBool(strings.TrimSpace(os.Getenv(name)))
 	return value
+}
+
+func envInt64(name string, fallback int64) int64 {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func envDuration(name string, fallback time.Duration) time.Duration {
