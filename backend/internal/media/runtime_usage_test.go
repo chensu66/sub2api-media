@@ -45,8 +45,11 @@ func (s *mediaUsageWriterStub) Create(context.Context, *service.UsageLog) (bool,
 func TestBuildMediaUsageLogUsesQuotedCostAndRequestModel(t *testing.T) {
 	createdAt := time.Now().Add(-3 * time.Second)
 	order := &Order{
-		ID: "media_test", UserID: 24, APIKeyID: 69, GroupID: 29,
-		Request: json.RawMessage(`{"contract_version":"media-gateway/v1","request":{"model":"gpt-image-2"}}`),
+		ID:        "media_test",
+		UserID:    24,
+		APIKeyID:  69,
+		GroupID:   29,
+		Request:   json.RawMessage(`{"contract_version":"media-gateway/v1","request":{"model":"gpt-image-2"}}`),
 		CreatedAt: createdAt,
 	}
 
@@ -80,8 +83,12 @@ func TestCaptureStopsBeforeSettlementWhenUsageLogFails(t *testing.T) {
 		usageLogs: &mediaUsageWriterStub{err: errors.New("usage database unavailable")},
 	}
 	order := &Order{
-		ID: "media_retry", UserID: 24, APIKeyID: 69, GroupID: 29,
-		Amount: "0.02", Request: json.RawMessage(`{"request":{"model":"gpt-image-2"}}`),
+		ID:        "media_retry",
+		UserID:    24,
+		APIKeyID:  69,
+		GroupID:   29,
+		Amount:    "0.02",
+		Request:   json.RawMessage(`{"request":{"model":"gpt-image-2"}}`),
 		CreatedAt: time.Now(),
 	}
 
