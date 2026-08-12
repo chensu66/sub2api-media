@@ -353,13 +353,13 @@ func (r *Runtime) capture(ctx context.Context, order *Order) error {
 	if err != nil {
 		return err
 	}
+	r.invalidateCustomer(ctx, order.UserID)
 	if r.usageLogs == nil || r.cfg.UsageAccountID <= 0 {
 		return errors.New("media usage log repository is not configured")
 	}
 	if _, err := r.usageLogs.Create(ctx, buildMediaUsageLog(order, r.cfg.UsageAccountID, amount)); err != nil {
 		return fmt.Errorf("record media usage: %w", err)
 	}
-	r.invalidateCustomer(ctx, order.UserID)
 	return r.repo.MarkSettled(ctx, order.ID, "captured")
 }
 
