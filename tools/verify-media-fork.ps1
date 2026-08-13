@@ -1,5 +1,5 @@
 param(
-    [string]$UpstreamRef = "v0.1.173"
+    [string]$UpstreamRef = "v0.1.176"
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +22,7 @@ $allowed = @(
     "backend/internal/server/router.go",
     "backend/internal/server/routes/media.go",
     "backend/internal/service/admin_group.go",
+    "backend/internal/service/admin_group_media_test.go",
     "backend/internal/service/domain_constants.go",
     "backend/internal/service/update_service.go",
     "backend/internal/service/update_service_test.go",

@@ -77,18 +77,18 @@ func TestUpdateServicePerformUpdateNoUpdateReturnsSentinel(t *testing.T) {
 func TestUpdateServiceMediaReleaseRepositoryAndSuffix(t *testing.T) {
 	t.Setenv("SUB2API_UPDATE_REPOSITORY", "chensu66/sub2api-media")
 	client := &updateServiceGitHubClientStub{release: &GitHubRelease{
-		TagName: "v0.1.173-media.5",
-		Name:    "v0.1.173-media.5",
+		TagName: "v0.1.176-media.1",
+		Name:    "v0.1.176-media.1",
 	}}
-	svc := NewUpdateService(&updateServiceCacheStub{}, client, "0.1.173-media.4", "release")
+	svc := NewUpdateService(&updateServiceCacheStub{}, client, "0.1.173-media.5", "release")
 
 	info, err := svc.CheckUpdate(context.Background(), true)
 
 	require.NoError(t, err)
 	require.True(t, info.HasUpdate)
 	require.Equal(t, "chensu66/sub2api-media", client.latestRepo)
-	require.Equal(t, -1, compareVersions("0.1.173-media.4", "0.1.173-media.5"))
-	require.Equal(t, 1, compareVersions("0.1.173-media.5", "0.1.173"))
+	require.Equal(t, -1, compareVersions("0.1.173-media.5", "0.1.176-media.1"))
+	require.Equal(t, 1, compareVersions("0.1.176-media.1", "0.1.176"))
 }
 
 func newRollbackTestService(current string, releases []*GitHubRelease) *UpdateService {
