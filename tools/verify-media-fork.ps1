@@ -36,7 +36,10 @@ $allowed = @(
     "tools/verify-media-fork.ps1"
 )
 
-$changed = git diff --name-only "$UpstreamRef...HEAD"
+$changed = @(git diff --name-only "$UpstreamRef...HEAD")
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to compare Media fork against upstream ref $UpstreamRef."
+}
 $unexpected = @($changed | Where-Object {
     $path = $_
     -not ($allowed | Where-Object {
