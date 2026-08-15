@@ -75,7 +75,7 @@ func TestBuildMediaUsageLogRecordsVideoShape(t *testing.T) {
 	order := &Order{
 		ID: "media_video_test", UserID: 24, APIKeyID: 69, GroupID: 29,
 		Operation: "video.generate",
-		Request: json.RawMessage(`{"contract_version":"media-gateway/v1","request":{"model":"seedance-2.0-mini","resolution":"2k","duration_seconds":8}}`),
+		Request:   json.RawMessage(`{"contract_version":"media-gateway/v1","request":{"model":"seedance-2.0-mini","resolution":"2k","duration_seconds":8}}`),
 		CreatedAt: time.Now(),
 	}
 
