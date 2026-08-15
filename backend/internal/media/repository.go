@@ -189,6 +189,16 @@ func (r *Repository) MarkSubmissionUnknown(ctx context.Context, orderID, code, m
 	return err
 }
 
+func (r *Repository) MarkManualReview(ctx context.Context, orderID, code, message string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE media_orders SET settlement_state = 'held', error_code = NULLIF($2, ''),
+			error_message = NULLIF($3, ''), next_reconcile_at = NOW() + INTERVAL '30 seconds',
+			updated_at = NOW()
+		WHERE order_id = $1 AND settlement_state NOT IN ('captured', 'released')
+	`, orderID, code, truncate(message, 1000))
+	return err
+}
+
 func (r *Repository) MarkAccepted(ctx context.Context, orderID string, response json.RawMessage) error {
 	var envelope struct {
 		ExecutionID string          `json:"execution_id"`

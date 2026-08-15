@@ -15,6 +15,7 @@ import (
 
 const maxQuoteBodyBytes = 1 << 20
 const maxOrderBodyBytes = 128 << 20
+const maxUploadProxyBodyBytes = 9 << 20
 
 var mediaIdentifier = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 
@@ -131,6 +132,41 @@ func (h *Handler) AuthorizeArtifact(c *gin.Context) {
 		return
 	}
 	writeRawJSON(c, http.StatusOK, response)
+}
+
+func (h *Handler) ProxyUpload(c *gin.Context) {
+	if !h.available(c) {
+		return
+	}
+	apiKey, ok := middleware.GetAPIKeyFromContext(c)
+	if !ok {
+		mediaError(c, http.StatusUnauthorized, "authentication_error", "A valid API key is required.")
+		return
+	}
+	if c.Request.ContentLength > maxUploadProxyBodyBytes {
+		mediaError(c, http.StatusRequestEntityTooLarge, "request_too_large", "The Media upload request is too large.")
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadProxyBodyBytes)
+	path := "/v1/media/uploads"
+	if uploadID := c.Param("upload_id"); uploadID != "" {
+		path += "/" + uploadID
+		if partNumber := c.Param("part_number"); partNumber != "" {
+			path += "/parts/" + partNumber
+		} else if c.Request.Method == http.MethodPost {
+			path += "/complete"
+		}
+	}
+	response, err := h.runtime.ProxyUpload(c.Request.Context(), apiKey, c.Request, path)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	contentType := response.ContentType
+	if contentType == "" {
+		contentType = "application/json; charset=utf-8"
+	}
+	c.Data(response.Status, contentType, response.Body)
 }
 
 func (h *Handler) available(c *gin.Context) bool {

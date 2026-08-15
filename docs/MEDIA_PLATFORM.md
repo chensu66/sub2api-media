@@ -5,6 +5,7 @@
 Sub2API publishes a commercial facade at:
 
 - `GET /v1/media/models`
+- `POST /v1/media/uploads` and its multipart part, complete, and abort routes
 - `POST /v1/media/quotes`
 - `POST /v1/media/orders`
 - `GET /v1/media/orders/{order_id}`
@@ -27,19 +28,23 @@ Media order records `held`, recovery replays the same hold request ID and
 finishes the local transition without freezing twice. A definite insufficient
 balance result terminates the order and is never retried after a later top-up.
 
-- Gate delivery ready or explicit customer charge: capture the hold.
-- Gate terminal and explicitly not charged: release the hold.
-- Timeout, connection loss, HTTP 5xx, or unknown Gate state: retain the hold
-  and reconcile by the Gate idempotency key.
-- Gate HTTP 4xx plus an explicit idempotency lookup miss: release the hold.
+- Gate writes automatic `capture` only after verified artifact delivery is
+  ready. A human review may explicitly choose `capture` for an undeliverable or
+  unknown order.
+- Gate writes `release` only after an explicit human decision.
+- Image or video failure, timeout, connection loss, HTTP 4xx/5xx, archive
+  failure, or unknown state retains the hold for manual review.
+- Provider charge evidence never implies customer capture. Sub2API settles only
+  from Gate's explicit `settlement_action` and keeps reconciling held orders.
 
 Capture also records API key quota and rate-limit usage with a separate,
 idempotent billing request. A crash between capture and quota recording is
 recovered by replaying both operations.
 
-Reference images are verified against the ordered quote descriptors and
-forwarded to Gate for execution. Their bytes are not persisted in Sub2API. A
-retried edit submission must therefore send the same ordered files.
+Image-edit multipart bytes are verified against the ordered quote descriptors
+and forwarded without persistence in Sub2API. Video references use Gate assets:
+upload image, video, or audio through `/v1/media/uploads`, then send only the
+returned `asset_id` in both quote and order-bound execution data.
 
 ## Service identity
 
@@ -50,8 +55,10 @@ Sub2API sends short-lived ES256 assertions to Gate containing:
 - `billing_subject=sub2api:api-key:{api_key_id}`
 - one least-privilege Media scope
 
-The raw customer API key is never sent to Gate. Gate binds the two opaque
-subjects into the signed quote, execution, events, and artifact authorization.
+The raw customer API key is never sent on service-identity quote, execution,
+event, or artifact calls. The upload proxy is the deliberate exception: it
+streams the original customer bearer credential to Gate so Gate can validate
+and owner-bind the multipart upload. Sub2API does not persist reference bytes.
 
 ## Configuration
 
@@ -99,3 +106,23 @@ Image generation orders use JSON:
 Image edit orders use `multipart/form-data` with `quote_id`,
 `idempotency_key`, and one to sixteen ordered `image[]` parts. File size,
 SHA-256, MIME type, and position must match the quote descriptors.
+
+Video quote requests use `operation=video.generate` and
+`schema_version=video.generate/v1`. Upload references first, then use the same
+opaque identities in quote and execution:
+
+```json
+{
+  "model": "seedance-2.0-mini",
+  "prompt": "Use @Image 1 and @Audio 1 in order",
+  "duration_seconds": 5,
+  "reference_images": [{ "asset_id": "..." }],
+  "reference_audios": [{ "asset_id": "..." }]
+}
+```
+
+Gate's signed quote is the required RunningHub price preview plus the active
+per-model service fee. The initial fee is 0.2 CNY. Sub2API freezes that exact
+quote before submission and settles only from Gate's explicit action: automatic
+capture follows verified delivery, while undeliverable and unknown orders wait
+for a human `capture` or `release` decision.

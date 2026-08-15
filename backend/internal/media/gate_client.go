@@ -28,6 +28,12 @@ type GateClient struct {
 	client *http.Client
 }
 
+type GateProxyResponse struct {
+	Status      int
+	ContentType string
+	Body        []byte
+}
+
 func NewGateClient(cfg Config, signer *AssertionSigner) *GateClient {
 	return &GateClient{
 		cfg: cfg, signer: signer,
@@ -135,6 +141,33 @@ func (c *GateClient) ExecutionByIdempotency(ctx context.Context, identity Custom
 	return c.JSON(ctx, http.MethodGet,
 		"/v1/media/executions/by-idempotency-key/"+url.PathEscape(key),
 		"media:executions:read", identity, nil)
+}
+
+func (c *GateClient) ProxyUpload(ctx context.Context, method, path, authorization, contentType string, contentLength int64, body io.Reader) (*GateProxyResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.cfg.GateBaseURL+path, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", authorization)
+	req.Header.Set("Accept", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	if contentLength >= 0 {
+		req.ContentLength = contentLength
+	}
+	response, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = response.Body.Close() }()
+	payload, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
+	if err != nil {
+		return nil, err
+	}
+	return &GateProxyResponse{
+		Status: response.StatusCode, ContentType: response.Header.Get("Content-Type"), Body: payload,
+	}, nil
 }
 
 func (c *GateClient) do(req *http.Request, scope string, identity CustomerIdentity) (json.RawMessage, error) {

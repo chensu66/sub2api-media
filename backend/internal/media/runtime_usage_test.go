@@ -65,9 +65,29 @@ func TestBuildMediaUsageLogUsesQuotedCostAndRequestModel(t *testing.T) {
 	require.Equal(t, service.BillingTypeBalance, log.BillingType)
 	require.Equal(t, service.RequestTypeSync, log.RequestType)
 	require.Equal(t, "per_request", *log.BillingMode)
-	require.Equal(t, 0, log.ImageCount)
+	require.Equal(t, 1, log.ImageCount)
 	require.Nil(t, log.ImageSize)
+	require.Equal(t, 0, log.VideoCount)
 	require.GreaterOrEqual(t, *log.DurationMs, 3000)
+}
+
+func TestBuildMediaUsageLogRecordsVideoShape(t *testing.T) {
+	order := &Order{
+		ID: "media_video_test", UserID: 24, APIKeyID: 69, GroupID: 29,
+		Operation: "video.generate",
+		Request: json.RawMessage(`{"contract_version":"media-gateway/v1","request":{"model":"seedance-2.0-mini","resolution":"2k","duration_seconds":8}}`),
+		CreatedAt: time.Now(),
+	}
+
+	log := buildMediaUsageLog(order, 88, 2.6)
+
+	require.Equal(t, "seedance-2.0-mini", log.Model)
+	require.Equal(t, 0, log.ImageCount)
+	require.Equal(t, 1, log.VideoCount)
+	require.NotNil(t, log.VideoResolution)
+	require.Equal(t, "2k", *log.VideoResolution)
+	require.NotNil(t, log.VideoDurationSeconds)
+	require.Equal(t, 8, *log.VideoDurationSeconds)
 }
 
 func TestMediaOrderModelFallsBackSafely(t *testing.T) {

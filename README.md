@@ -35,8 +35,9 @@ subscription billing is rejected.
 
 Fork-owned files:
 
-- `backend/internal/media/*`: Gate client, ES256 service identity, order
-  state machine, balance adapter, recovery loop, and HTTP handlers.
+- `backend/internal/media/*`: Gate client, ES256 service identity, streaming
+  reference-upload proxy, order state machine, balance adapter, recovery loop,
+  and HTTP handlers.
 - `backend/internal/server/routes/media.go`: isolated public Media routes.
 - `backend/migrations/9001_media_platform.sql`: quotes and orders ledger.
 - `docs/MEDIA_PLATFORM.md`: API, configuration, and recovery contract.

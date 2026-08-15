@@ -32,6 +32,17 @@ type Runtime struct {
 	stopOnce     sync.Once
 }
 
+type gateExecutionEnvelope struct {
+	SettlementAction     string `json:"settlement_action"`
+	ManualReviewRequired bool   `json:"manual_review_required"`
+	Projection           struct {
+		QueueState     string `json:"queue_state"`
+		ChargeState    string `json:"charge_state"`
+		DeliveryState  string `json:"delivery_state"`
+		ExecutionState string `json:"execution_state"`
+	} `json:"projection"`
+}
+
 func NewRuntime(
 	repo *Repository,
 	billing service.UsageBillingRepository,
@@ -196,10 +207,7 @@ func (r *Runtime) SubmitOrder(
 		definitiveMiss := errors.As(lookupErr, &lookupGateErr) && lookupGateErr.Status == http.StatusNotFound
 		if errors.As(err, &gateErr) && gateErr.Status >= 400 && gateErr.Status < 500 && definitiveMiss {
 			_ = r.repo.MarkSubmissionUnknown(ctx, order.ID, gateErr.Code, string(gateErr.Body))
-			_ = r.repo.MarkSettlementPending(ctx, order.ID, "release_pending")
-			if releaseErr := r.release(ctx, order); releaseErr != nil {
-				return nil, false, errors.Join(err, releaseErr)
-			}
+			_ = r.repo.MarkManualReview(ctx, order.ID, gateErr.Code, "Gate rejected the held order before exposing an execution")
 			current, getErr := r.repo.GetOrderInternal(ctx, order.ID)
 			return current, false, errors.Join(err, getErr)
 		}
@@ -216,6 +224,14 @@ func (r *Runtime) SubmitOrder(
 		accepted, err = r.repo.GetOrderInternal(ctx, order.ID)
 	}
 	return accepted, false, err
+}
+
+func (r *Runtime) ProxyUpload(ctx context.Context, apiKey *service.APIKey, request *http.Request, path string) (*GateProxyResponse, error) {
+	if _, err := validateMediaAPIKey(apiKey); err != nil {
+		return nil, err
+	}
+	return r.gate.ProxyUpload(ctx, request.Method, path, request.Header.Get("Authorization"),
+		request.Header.Get("Content-Type"), request.ContentLength, request.Body)
 }
 
 func (r *Runtime) GetOrder(ctx context.Context, apiKey *service.APIKey, orderID string) (*Order, error) {
@@ -308,30 +324,38 @@ func (r *Runtime) refreshAndSettle(ctx context.Context, order *Order) error {
 	if err := r.repo.UpdateProjection(ctx, order.ID, response); err != nil {
 		return err
 	}
-	var envelope struct {
-		Projection struct {
-			QueueState     string `json:"queue_state"`
-			ChargeState    string `json:"charge_state"`
-			DeliveryState  string `json:"delivery_state"`
-			ExecutionState string `json:"execution_state"`
-		} `json:"projection"`
-	}
+	var envelope gateExecutionEnvelope
 	if err := json.Unmarshal(response, &envelope); err != nil {
 		return err
 	}
-	if envelope.Projection.DeliveryState == "ready" || envelope.Projection.ChargeState == "charged" {
+	switch gateSettlementDecision(envelope) {
+	case "capture":
 		if err := r.repo.MarkSettlementPending(ctx, order.ID, "capture_pending"); err != nil {
 			return err
 		}
 		return r.capture(ctx, order)
-	}
-	if envelope.Projection.QueueState == "terminal" && envelope.Projection.ChargeState == "not_charged" {
+	case "release":
 		if err := r.repo.MarkSettlementPending(ctx, order.ID, "release_pending"); err != nil {
 			return err
 		}
 		return r.release(ctx, order)
+	case "manual_review":
+		return r.repo.MarkManualReview(ctx, order.ID, "manual_review_required", "Gate requires an explicit human settlement decision")
 	}
 	return nil
+}
+
+func gateSettlementDecision(envelope gateExecutionEnvelope) string {
+	if envelope.SettlementAction == "capture" {
+		return "capture"
+	}
+	if envelope.SettlementAction == "release" {
+		return "release"
+	}
+	if envelope.SettlementAction != "" || envelope.ManualReviewRequired || envelope.Projection.QueueState == "terminal" {
+		return "manual_review"
+	}
+	return ""
 }
 
 func (r *Runtime) capture(ctx context.Context, order *Order) error {
@@ -345,8 +369,8 @@ func (r *Runtime) capture(ctx context.Context, order *Order) error {
 	}
 	_, err = r.billing.Apply(ctx, &service.UsageBillingCommand{
 		RequestID: service.BatchImageCaptureRequestID(order.ID) + ":api_key",
-		UserID:    order.UserID, APIKeyID: order.APIKeyID, Model: "gpt-image-2",
-		BillingType: service.BillingTypeBalance, ImageCount: 1, MediaType: "image",
+		UserID:    order.UserID, APIKeyID: order.APIKeyID, Model: mediaOrderModel(order.Request),
+		BillingType: service.BillingTypeBalance, ImageCount: mediaOrderImageCount(order), MediaType: mediaOrderType(order),
 		APIKeyQuotaCost: amount, APIKeyRateLimitCost: amount,
 		RequestPayloadHash: requestHash(order.Request),
 	})
@@ -363,12 +387,28 @@ func (r *Runtime) capture(ctx context.Context, order *Order) error {
 	return r.repo.MarkSettled(ctx, order.ID, "captured")
 }
 
+func mediaOrderType(order *Order) string {
+	if order != nil && order.Operation == "video.generate" {
+		return "video"
+	}
+	return "image"
+}
+
+func mediaOrderImageCount(order *Order) int {
+	if mediaOrderType(order) == "image" {
+		return 1
+	}
+	return 0
+}
+
 func buildMediaUsageLog(order *Order, accountID int64, amount float64) *service.UsageLog {
 	duration := int(time.Since(order.CreatedAt).Milliseconds())
 	if duration < 0 {
 		duration = 0
 	}
 	requestedModel := mediaOrderModel(order.Request)
+	imageCount := mediaOrderImageCount(order)
+	videoCount, videoResolution, videoDuration := mediaOrderVideoUsage(order)
 	billingMode := string(service.BillingModePerRequest)
 	inboundEndpoint := "/v1/media/orders"
 	upstreamEndpoint := "/v1/media/executions"
@@ -378,10 +418,38 @@ func buildMediaUsageLog(order *Order, accountID int64, amount float64) *service.
 		RequestID: "media:" + order.ID, Model: requestedModel, RequestedModel: requestedModel,
 		GroupID: &groupID, TotalCost: amount, ActualCost: amount, RateMultiplier: 1,
 		BillingType: service.BillingTypeBalance, RequestType: service.RequestTypeSync,
+		ImageCount: imageCount, VideoCount: videoCount,
+		VideoResolution: videoResolution, VideoDurationSeconds: videoDuration,
 		DurationMs: &duration, BillingMode: &billingMode,
 		InboundEndpoint: &inboundEndpoint, UpstreamEndpoint: &upstreamEndpoint,
 		CreatedAt: order.CreatedAt,
 	}
+}
+
+func mediaOrderVideoUsage(order *Order) (int, *string, *int) {
+	if mediaOrderType(order) != "video" {
+		return 0, nil, nil
+	}
+	var envelope struct {
+		Request struct {
+			Resolution      string `json:"resolution"`
+			DurationSeconds int    `json:"duration_seconds"`
+		} `json:"request"`
+	}
+	if order == nil || json.Unmarshal(order.Request, &envelope) != nil {
+		return 1, nil, nil
+	}
+	resolution := strings.TrimSpace(envelope.Request.Resolution)
+	duration := envelope.Request.DurationSeconds
+	var resolutionValue *string
+	var durationValue *int
+	if resolution != "" {
+		resolutionValue = &resolution
+	}
+	if duration > 0 {
+		durationValue = &duration
+	}
+	return 1, resolutionValue, durationValue
 }
 
 func mediaOrderModel(request json.RawMessage) string {
