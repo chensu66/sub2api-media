@@ -60,6 +60,7 @@ services:
       # =======================================================================
       - SUB2API_MEDIA_ENABLED=${SUB2API_MEDIA_ENABLED:-false}
       - SUB2API_MEDIA_GATE_BASE_URL=${SUB2API_MEDIA_GATE_BASE_URL:-https://gate.ichen.su}
+      - SUB2API_MEDIA_PUBLIC_BASE_URL=${SUB2API_MEDIA_PUBLIC_BASE_URL:-https://ai.ichen.su}
       - SUB2API_MEDIA_SERVICE_ISSUER=${SUB2API_MEDIA_SERVICE_ISSUER:-}
       - SUB2API_MEDIA_SERVICE_AUDIENCE=${SUB2API_MEDIA_SERVICE_AUDIENCE:-}
       - SUB2API_MEDIA_CALLER_ID=${SUB2API_MEDIA_CALLER_ID:-sub2api}

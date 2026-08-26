@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Enabled        bool
 	GateBaseURL    string
+	PublicBaseURL  string
 	Issuer         string
 	Audience       string
 	CallerID       string
@@ -26,6 +27,7 @@ func LoadConfig() (Config, error) {
 	cfg := Config{
 		Enabled:        envBool("SUB2API_MEDIA_ENABLED"),
 		GateBaseURL:    envString("SUB2API_MEDIA_GATE_BASE_URL", "https://gate.ichen.su"),
+		PublicBaseURL:  envString("SUB2API_MEDIA_PUBLIC_BASE_URL", "https://ai.ichen.su"),
 		Issuer:         envString("SUB2API_MEDIA_SERVICE_ISSUER", "https://sub2api.local/internal/media"),
 		Audience:       envString("SUB2API_MEDIA_SERVICE_AUDIENCE", "gate-media"),
 		CallerID:       envString("SUB2API_MEDIA_CALLER_ID", "sub2api"),
@@ -37,10 +39,11 @@ func LoadConfig() (Config, error) {
 		PollInterval:   envDuration("SUB2API_MEDIA_POLL_INTERVAL", 3*time.Second),
 	}
 	cfg.GateBaseURL = strings.TrimRight(strings.TrimSpace(cfg.GateBaseURL), "/")
+	cfg.PublicBaseURL = strings.TrimRight(strings.TrimSpace(cfg.PublicBaseURL), "/")
 	if !cfg.Enabled {
 		return cfg, nil
 	}
-	if cfg.GateBaseURL == "" || cfg.Issuer == "" || cfg.Audience == "" || cfg.CallerID == "" ||
+	if cfg.GateBaseURL == "" || cfg.PublicBaseURL == "" || cfg.Issuer == "" || cfg.Audience == "" || cfg.CallerID == "" ||
 		cfg.KeyID == "" || (strings.TrimSpace(cfg.PrivateKeyPEM) == "" && cfg.PrivateKeyJWK == "") || cfg.UsageAccountID <= 0 {
 		return Config{}, errors.New("media platform is enabled but its service configuration is incomplete")
 	}

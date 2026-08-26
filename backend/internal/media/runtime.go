@@ -10,6 +10,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -256,12 +257,69 @@ func (r *Runtime) AuthorizeArtifact(
 		return nil, err
 	}
 	if order.SettlementState != "captured" {
-		return nil, errors.New("the Media order has no captured artifact")
+		return nil, ErrArtifactNotReady
+	}
+	if !orderHasArtifact(order, artifactID) {
+		return nil, ErrArtifactNotFound
 	}
 	body := map[string]any{"order_id": order.ID, "action": "read", "expires_in": 900}
-	return r.gate.JSON(ctx, http.MethodPost,
+	response, err := r.gate.JSON(ctx, http.MethodPost,
 		"/v1/media/artifacts/"+artifactID+"/authorizations",
 		"media:artifacts:authorize", order.Identity(), body)
+	if err != nil {
+		return nil, err
+	}
+	var authorization struct {
+		ExpiresAt  string `json:"expires_at"`
+		ContentURL string `json:"content_url"`
+	}
+	if err := json.Unmarshal(response, &authorization); err != nil {
+		return nil, err
+	}
+	contentURL, err := url.Parse(authorization.ContentURL)
+	if err != nil || authorization.ExpiresAt == "" || contentURL.Query().Get("token") == "" {
+		return nil, ErrArtifactAuth
+	}
+	token := contentURL.Query().Get("token")
+	publicURL, err := url.Parse(r.cfg.PublicBaseURL)
+	if err != nil {
+		return nil, err
+	}
+	contentURL.Scheme = publicURL.Scheme
+	contentURL.Host = publicURL.Host
+	contentURL.Path = "/v1/media/orders/" + url.PathEscape(order.ID) + "/artifacts/" + url.PathEscape(artifactID) + "/content"
+	contentURL.RawQuery = "token=" + url.QueryEscape(token)
+	return json.Marshal(map[string]any{
+		"contract_version": "sub2api-media/v1",
+		"object":           "media.artifact.authorization",
+		"artifact_id":      artifactID,
+		"action":           "read",
+		"expires_at":       authorization.ExpiresAt,
+		"content_url":      contentURL.String(),
+	})
+}
+
+func (r *Runtime) ProxyArtifactContent(
+	ctx context.Context,
+	apiKey *service.APIKey,
+	orderID, artifactID string,
+	request *http.Request,
+) (*http.Response, error) {
+	order, err := r.GetOrder(ctx, apiKey, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.SettlementState != "captured" {
+		return nil, ErrArtifactNotReady
+	}
+	if !orderHasArtifact(order, artifactID) {
+		return nil, ErrArtifactNotFound
+	}
+	token := strings.TrimSpace(request.URL.Query().Get("token"))
+	if token == "" {
+		return nil, ErrArtifactAuth
+	}
+	return r.gate.ProxyArtifactContent(ctx, artifactID, token, request.Header.Get("Range"))
 }
 
 func (r *Runtime) submitToGate(
@@ -632,12 +690,14 @@ func validateReferenceImages(request json.RawMessage, files []*multipart.FileHea
 
 func publicOrder(order *Order) map[string]any {
 	result := map[string]any{
+		"contract_version": "sub2api-media/v1",
 		"object": "media.order", "order_id": order.ID, "quote_id": order.QuoteID,
 		"idempotency_key": order.ClientIdempotencyKey, "operation": order.Operation,
 		"submission_state": order.SubmissionState, "settlement_state": order.SettlementState,
 		"price":      map[string]any{"amount": order.Amount, "currency": order.Currency},
 		"created_at": order.CreatedAt.UTC().Format(time.RFC3339),
 		"updated_at": order.UpdatedAt.UTC().Format(time.RFC3339),
+		"artifacts": publicArtifacts(order.GateResponse),
 	}
 	if order.GateExecutionID.Valid {
 		result["execution_id"] = order.GateExecutionID.String
@@ -661,4 +721,44 @@ func publicOrder(order *Order) map[string]any {
 		result["error"] = map[string]any{"code": order.ErrorCode.String, "message": order.ErrorMessage.String}
 	}
 	return result
+}
+
+func publicArtifacts(raw json.RawMessage) []any {
+	var response map[string]any
+	if len(raw) == 0 || json.Unmarshal(raw, &response) != nil {
+		return []any{}
+	}
+	items, ok := response["artifacts"].([]any)
+	if !ok {
+		return []any{}
+	}
+	artifacts := make([]any, 0, len(items))
+	for _, item := range items {
+		artifact, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		artifactID, ok := artifact["artifact_id"].(string)
+		if !ok || artifactID == "" {
+			continue
+		}
+		public := map[string]any{"artifact_id": artifactID}
+		for _, field := range []string{"state", "media_type", "size_bytes", "sha256", "width", "height"} {
+			if value, exists := artifact[field]; exists {
+				public[field] = value
+			}
+		}
+		artifacts = append(artifacts, public)
+	}
+	return artifacts
+}
+
+func orderHasArtifact(order *Order, artifactID string) bool {
+	for _, item := range publicArtifacts(order.GateResponse) {
+		artifact, ok := item.(map[string]any)
+		if ok && artifact["artifact_id"] == artifactID {
+			return true
+		}
+	}
+	return false
 }

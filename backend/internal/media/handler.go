@@ -134,6 +134,36 @@ func (h *Handler) AuthorizeArtifact(c *gin.Context) {
 	writeRawJSON(c, http.StatusOK, response)
 }
 
+func (h *Handler) ArtifactContent(c *gin.Context) {
+	if !h.available(c) {
+		return
+	}
+	apiKey, ok := middleware.GetAPIKeyFromContext(c)
+	if !ok {
+		mediaError(c, http.StatusUnauthorized, "authentication_error", "A valid API key is required.")
+		return
+	}
+	response, err := h.runtime.ProxyArtifactContent(
+		c.Request.Context(), apiKey, c.Param("order_id"), c.Param("artifact_id"), c.Request)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	defer func() { _ = response.Body.Close() }()
+	for _, header := range []string{
+		"Accept-Ranges", "Cache-Control", "Content-Disposition", "Content-Length",
+		"Content-Range", "Content-Type", "ETag", "Retry-After", "X-Content-Type-Options",
+	} {
+		if value := response.Header.Get(header); value != "" {
+			c.Header(header, value)
+		}
+	}
+	c.Status(response.StatusCode)
+	if c.Request.Method != http.MethodHead {
+		_, _ = io.Copy(c.Writer, response.Body)
+	}
+}
+
 func (h *Handler) ProxyUpload(c *gin.Context) {
 	if !h.available(c) {
 		return
@@ -182,6 +212,12 @@ func (h *Handler) writeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		mediaError(c, http.StatusNotFound, "not_found", "The Media quote or order does not exist.")
+	case errors.Is(err, ErrArtifactNotFound):
+		mediaError(c, http.StatusNotFound, "artifact_not_found", "The Media artifact does not exist for this order.")
+	case errors.Is(err, ErrArtifactNotReady):
+		mediaError(c, http.StatusConflict, "artifact_not_ready", "The Media artifact is not ready for download.")
+	case errors.Is(err, ErrArtifactAuth):
+		mediaError(c, http.StatusUnauthorized, "invalid_artifact_authorization", "The Media artifact authorization is invalid or expired.")
 	case errors.Is(err, ErrQuoteExpired):
 		mediaError(c, http.StatusConflict, "quote_expired", err.Error())
 	case errors.Is(err, ErrQuoteConsumed), errors.Is(err, ErrIdempotencyConflict):

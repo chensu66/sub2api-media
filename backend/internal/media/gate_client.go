@@ -170,6 +170,36 @@ func (c *GateClient) ProxyUpload(ctx context.Context, method, path, authorizatio
 	}, nil
 }
 
+func (c *GateClient) ProxyArtifactContent(ctx context.Context, artifactID, token, rangeValue string) (*http.Response, error) {
+	path := "/v1/media/artifacts/" + url.PathEscape(artifactID) + "/content?token=" + url.QueryEscape(token)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.cfg.GateBaseURL+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	if rangeValue != "" {
+		req.Header.Set("Range", rangeValue)
+	}
+	response, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+		_ = response.Body.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		var envelope struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(body, &envelope)
+		return nil, &GateError{Status: response.StatusCode, Code: envelope.Error.Code, Body: body}
+	}
+	return response, nil
+}
+
 func (c *GateClient) do(req *http.Request, scope string, identity CustomerIdentity) (json.RawMessage, error) {
 	assertion, err := c.signer.Sign(scope, identity)
 	if err != nil {

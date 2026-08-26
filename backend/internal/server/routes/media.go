@@ -18,4 +18,6 @@ func RegisterMediaRoutes(r *gin.Engine, handler *media.Handler, apiKeyAuth middl
 	group.POST("/orders", handler.CreateOrder)
 	group.GET("/orders/:order_id", handler.GetOrder)
 	group.GET("/orders/:order_id/artifacts/:artifact_id", handler.AuthorizeArtifact)
+	group.GET("/orders/:order_id/artifacts/:artifact_id/content", handler.ArtifactContent)
+	group.HEAD("/orders/:order_id/artifacts/:artifact_id/content", handler.ArtifactContent)
 }

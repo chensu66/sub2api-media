@@ -14,6 +14,9 @@ var (
 	ErrQuoteConsumed       = errors.New("media quote already consumed")
 	ErrQuoteExpired        = errors.New("media quote expired")
 	ErrIdempotencyConflict = errors.New("media idempotency key conflict")
+	ErrArtifactNotFound    = errors.New("media artifact not found")
+	ErrArtifactNotReady    = errors.New("media artifact not ready")
+	ErrArtifactAuth        = errors.New("media artifact authorization is invalid")
 	errorsDisabled         = errors.New("media platform is disabled")
 )
 

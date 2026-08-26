@@ -10,6 +10,7 @@ Sub2API publishes a commercial facade at:
 - `POST /v1/media/orders`
 - `GET /v1/media/orders/{order_id}`
 - `GET /v1/media/orders/{order_id}/artifacts/{artifact_id}`
+- `GET /v1/media/orders/{order_id}/artifacts/{artifact_id}/content`
 
 The official Sub2API `/v1/images/*` routes are unchanged. Gate's service
 routes are never exposed without Sub2API authentication.
@@ -65,6 +66,7 @@ and owner-bind the multipart upload. Sub2API does not persist reference bytes.
 `SUB2API_MEDIA_ENABLED=true` enables the module. The remaining variables are:
 
 - `SUB2API_MEDIA_GATE_BASE_URL` (default `https://gate.ichen.su`)
+- `SUB2API_MEDIA_PUBLIC_BASE_URL` (default `https://ai.ichen.su`)
 - `SUB2API_MEDIA_SERVICE_ISSUER`
 - `SUB2API_MEDIA_SERVICE_AUDIENCE`
 - `SUB2API_MEDIA_CALLER_ID` (default `sub2api`)
