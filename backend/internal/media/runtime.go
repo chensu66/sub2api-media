@@ -690,7 +690,7 @@ func validateReferenceImages(request json.RawMessage, files []*multipart.FileHea
 
 func publicOrder(order *Order) map[string]any {
 	result := map[string]any{
-		"contract_version":  "sub2api-media/v1",
+		"contract_version": "sub2api-media/v1",
 		"object":            "media.order",
 		"order_id":          order.ID,
 		"quote_id":          order.QuoteID,
