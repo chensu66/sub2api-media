@@ -690,14 +690,18 @@ func validateReferenceImages(request json.RawMessage, files []*multipart.FileHea
 
 func publicOrder(order *Order) map[string]any {
 	result := map[string]any{
-		"contract_version": "sub2api-media/v1",
-		"object": "media.order", "order_id": order.ID, "quote_id": order.QuoteID,
-		"idempotency_key": order.ClientIdempotencyKey, "operation": order.Operation,
-		"submission_state": order.SubmissionState, "settlement_state": order.SettlementState,
-		"price":      map[string]any{"amount": order.Amount, "currency": order.Currency},
-		"created_at": order.CreatedAt.UTC().Format(time.RFC3339),
-		"updated_at": order.UpdatedAt.UTC().Format(time.RFC3339),
-		"artifacts": publicArtifacts(order.GateResponse),
+		"contract_version":  "sub2api-media/v1",
+		"object":            "media.order",
+		"order_id":          order.ID,
+		"quote_id":          order.QuoteID,
+		"idempotency_key":   order.ClientIdempotencyKey,
+		"operation":         order.Operation,
+		"submission_state":  order.SubmissionState,
+		"settlement_state":  order.SettlementState,
+		"price":             map[string]any{"amount": order.Amount, "currency": order.Currency},
+		"created_at":        order.CreatedAt.UTC().Format(time.RFC3339),
+		"updated_at":        order.UpdatedAt.UTC().Format(time.RFC3339),
+		"artifacts":         publicArtifacts(order.GateResponse),
 	}
 	if order.GateExecutionID.Valid {
 		result["execution_id"] = order.GateExecutionID.String
